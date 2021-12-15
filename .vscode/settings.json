@@ -1,0 +1,12 @@
+{
+    "files.associations": {
+        "ae.h": "c",
+        "lua.h": "c",
+        "ae_epoll.h": "c",
+        "cstdio": "c",
+        "anet.h": "c",
+        "epoll.h": "c",
+        "poll.h": "c",
+        "lauxlib.h": "c"
+    }
+}
