@@ -51,15 +51,8 @@ end
 
 local caller = {}
 
-local aefd
-function _M.new_poll()
-    aefd = ae.create()
-    return aefd
-end
 
-function _M.free_poll()
-    return ae.close(aefd)
-end
+local aefd
 
 local function close(fd)
     local s = socket_pool[fd]
@@ -129,7 +122,7 @@ local function ev_client_handler(s, readable, writable, _)
                     end
                 end
             end
-            if n == sz then
+            if n == sz and sz < 4096 then
                 s.read_step = s.read_step * 2;
             elseif n > 64 and n*2 < sz then
                 s.read_step = s.read_step / 2;
@@ -170,6 +163,19 @@ local event_handler = {
     connect = ev_connect_handler,
     pool_connect = ev_pool_connect_handler,
 }
+
+function _M.new_poll()
+    aefd = ae.create()
+    ae.register({
+        update_time = timer.update_cache_time,
+        ev_handler = event_handler.base,
+    })
+    return aefd
+end
+
+function _M.free_poll()
+    return ae.close(aefd)
+end
 
 function _M.listen(endpoint, on_accept)
     local host, port = endpoint:match("([^:]+):(.+)$")
@@ -373,6 +379,7 @@ local function pool_connect(ip, port, spool)
     }
     socket_pool[fd] = sock
     caller[running] = fd
+    -- print("pool_connect begin yield", fd)
     local ok, err = coroutine_yield()
     caller[running] = nil
     if not ok then
@@ -380,7 +387,7 @@ local function pool_connect(ip, port, spool)
         close(fd)
         return -1, err
     end
-    if spool.pool_size < spool.connections then
+    if spool.connections <= spool.pool_size then
         spool.free[fd] = sock
         sock.status = "free"
     end
@@ -436,7 +443,8 @@ function _M.setkeepalive(fd)
         return
     end
     local spool = assert(connection_pool[s.pool_name])
-    if spool.status ~= "free" then
+    -- print("setkeepalive", fd, spool.pool_name, s.status)
+    if s.status ~= "free" then
         close(fd)
         return
     end
@@ -455,13 +463,17 @@ function _M.setkeepalive(fd)
 end
 
 function _M.event_wait(timeout)
-    local events = ae.poll(aefd, timeout or -1, 64)
-    timer.update_cache_time()
-    if events then
-        for _, ev in ipairs(events) do
-            event_handler.base(tab_unpack(ev))
-        end
-    end
+    ae.poll(aefd, timeout or -1, 64)
+end
+
+function _M.sleep(csec)
+    local running = coroutine_running()
+    caller[running] = -1
+    timer.add_timer(csec, function ()
+        coroutine_resume(running)
+    end)
+    coroutine_yield()
+    caller[running] = nil
 end
 
 return _M

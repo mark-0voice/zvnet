@@ -9,10 +9,14 @@
 static int
 lread(lua_State *L) {
     buffer_t *p = (buffer_t *)luaL_checkudata(L, 1, "zvnet.buffer");
-    // printf("lread:%p\n", p);
     int fd = luaL_checkinteger(L, 2);
     int sz = luaL_checkinteger(L, 3);
-    char buf[sz];
+    uint8_t * buf = buffer_available_chunk(p, sz);
+    if (buf == NULL) {
+        lua_pushnil(L);
+        lua_pushliteral(L, "cant find continuous space for read");
+        return 2;
+    }
     int n = anet_tcp_read(fd, buf, sz);
     switch (n) {
     case 0:
@@ -25,11 +29,11 @@ lread(lua_State *L) {
         break;
     case -2:
         lua_pushinteger(L, 0);
-        break;
+        return 1;
     default:
         lua_pushinteger(L, n);
         buffer_add(p, buf, n);
-        break;
+        return 1;
     }
     return 2;
 }
@@ -76,35 +80,57 @@ lflush(lua_State *L) {
         lua_pushboolean(L, true);
         return 1;
     }
-    buf_chain_t *chain;
-    for (chain = p->first; chain; chain = chain->next)
-    {
-        int n = anet_tcp_write(fd, chain->buffer+chain->misalign, chain->off);
-        if (n <= 0) {
-            lua_pushboolean(L, false);
-            return 1;
-        }
-        buffer_drain(p, n);
-        if (n < chain->off) {
-            lua_pushboolean(L, false);
-            return 1;
-        }
+    uint8_t * buf = buffer_write_atmost(p);
+    if (buf == NULL) {
+        lua_pushboolean(L, false);
+        return 1;
+    }
+    int n = anet_tcp_write(fd, buf, p->total_len);
+    if (n <= 0) {
+        lua_pushboolean(L, false);
+        return 1;
+    }
+    buffer_drain(p, n);
+    if (n < p->total_len) {
+        lua_pushboolean(L, false);
+        return 1;
     }
     lua_pushboolean(L, true);
     return 1;
 }
 
 static int
+lua_buffer_read(lua_State *L, buffer_t *p, uint32_t size, uint32_t seplen) {
+    if (size == 0)
+        return 0;
+    uint32_t nread = size;
+    size = size - seplen;
+    buf_chain_t *chain = p->first;
+    luaL_Buffer b;
+    luaL_buffinit(L, &b);
+    while (size && size >= chain->off) {
+        uint32_t copylen = chain->off;
+        luaL_addlstring(&b, (const char*)chain->buffer + chain->misalign, copylen);
+        size -= copylen;
+        chain = chain->next;
+    }
+    if (size) {
+        luaL_addlstring(&b, (const char*)chain->buffer + chain->misalign, size);
+    }
+    buffer_drain(p, nread);
+    luaL_pushresult(&b);
+    return nread;
+}
+
+static int
 lreadn(lua_State *L) {
     buffer_t *p = (buffer_t *)luaL_checkudata(L, 1, "zvnet.buffer");
-    int sz = luaL_checkinteger(L, 2);
-    if (sz <= 0) {
+    uint32_t sz = luaL_checkinteger(L, 2);
+    if (sz == 0) {
         return luaL_error(L, "lreadn(sz) sz need > 0");
     }
     if (p->total_len >= sz) {
-        char buf[sz+1];
-        buffer_remove(p, buf, sz);
-        lua_pushlstring(L, buf, sz);
+        lua_buffer_read(L, p, sz, 0);
     } else {
         lua_pushnil(L);
     }
@@ -114,13 +140,11 @@ lreadn(lua_State *L) {
 static int
 lreadline(lua_State *L) {
     buffer_t *p = (buffer_t *)luaL_checkudata(L, 1, "zvnet.buffer");
-	size_t seplen = 0;
-	const char *sep = luaL_checklstring(L, 2, &seplen);
+    size_t seplen = 0;
+    const char *sep = luaL_checklstring(L, 2, &seplen);
     int n = buffer_search(p, sep, seplen);
     if (n > 0) {
-        char buf[n+1];
-        buffer_remove(p, buf, n);
-        lua_pushlstring(L, buf, n-seplen);
+        lua_buffer_read(L, p, n, seplen);
     } else {
         lua_pushnil(L);
     }
@@ -140,17 +164,17 @@ lnew (lua_State *L) {
     buffer_t *q = (buffer_t*)lua_newuserdata(L, sizeof(buffer_t));
     memset(q, 0, sizeof(*q));
     q->last_with_datap = &q->first;
-	if (luaL_newmetatable(L, "zvnet.buffer")) {
+    if (luaL_newmetatable(L, "zvnet.buffer")) {
         luaL_Reg m[] = {
-			{"read", lread},
+            {"read", lread},
             {"write", lwrite},
             {"readline", lreadline},
             {"readn", lreadn},
             {"flush", lflush},
             {"clear", lclear},
-			{NULL, NULL},
-		};
-		luaL_newlib(L, m);
+            {NULL, NULL},
+        };
+        luaL_newlib(L, m);
         lua_setfield(L, -2, "__index");
     }
     lua_setmetatable(L, -2);
@@ -158,8 +182,8 @@ lnew (lua_State *L) {
 }
 
 static const luaL_Reg lib[] = {
-	{"new", lnew},
-	{NULL, NULL},
+    {"new", lnew},
+    {NULL, NULL},
 };
 
 int luaopen_zvnet_buffer(lua_State *L) {

@@ -11,13 +11,13 @@
 
 static int
 traceback (lua_State *L) {
-	const char *msg = lua_tostring(L, 1);
-	if (msg)
-		luaL_traceback(L, L, msg, 1);
-	else {
-		lua_pushliteral(L, "no error message");
-	}
-	return 1;
+    const char *msg = lua_tostring(L, 1);
+    if (msg)
+        luaL_traceback(L, L, msg, 1);
+    else {
+        lua_pushliteral(L, "no error message");
+    }
+    return 1;
 }
 
 int main(int argc, char** argv) {

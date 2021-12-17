@@ -104,7 +104,7 @@ local function add_timer(csec, func)
     local ele = new_tab(3, 0)
     n = n+1
     ele[1], ele[2], ele[3] = n, now_tick + csec, func
-    print("add timer", csec, ele[2])
+    -- print("add timer", csec, ele[2])
     minheap[n] = ele
     local idx = min_heap_shift_up(n)
     -- dump_timer("add_timer")
@@ -139,7 +139,7 @@ local function expire_timer()
         if diff >= 0 then
             return diff * 10
         end
-        print("expire timer", now_tick)
+        -- print("expire timer", now_tick)
         local _, err = xpcall(ele[3], debug.traceback)
         if err then
             print(err)

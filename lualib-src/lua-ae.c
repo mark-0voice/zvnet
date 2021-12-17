@@ -75,34 +75,40 @@ lwait(lua_State *L) {
 }
 
 static int
+lregister(lua_State *L) {
+    luaL_checktype(L, 1, LUA_TTABLE);
+    lua_getfield(L, 1, "update_time");
+    luaL_checktype(L, -1, LUA_TFUNCTION);
+    lua_setfield(L, LUA_REGISTRYINDEX, "zvnet.update_time");
+    lua_getfield(L, 1, "ev_handler");
+    luaL_checktype(L, -1, LUA_TFUNCTION);
+    lua_setfield(L, LUA_REGISTRYINDEX, "zvnet.ev_handler");
+    return 0;
+}
+
+static int
 lpoll(lua_State *L) {
     int aefd = luaL_checkinteger(L, 1);
     int timeout = luaL_checkinteger(L, 2);
     int nfired = luaL_checkinteger(L, 3);
-    
     event_t e[nfired];
     int n = ae_poll(aefd, e, nfired, timeout);
-    if (n > 0)
-        lua_createtable(L, n, 0);
-    else
-        lua_pushnil(L);
+    lua_getfield(L, LUA_REGISTRYINDEX, "zvnet.update_time");
+    lua_call(L, 0, 0);
+    lua_getfield(L, LUA_REGISTRYINDEX, "zvnet.ev_handler");
     for(int i = 0; i < n; i++)
     {
-        lua_createtable(L, 4, 0);
+        lua_pushvalue(L, 4);
         lua_pushinteger(L, e[i].fd);
-        lua_rawseti(L, -2, 1);
         lua_pushboolean(L, e[i].read);
-        lua_rawseti(L, -2, 2);
         lua_pushboolean(L, e[i].write);
-        lua_rawseti(L, -2, 3);
         if (e[i].error)
             lua_pushstring(L, socket_error(e[i].fd));
         else
             lua_pushnil(L);
-        lua_rawseti(L, -2, 4);
-        lua_rawseti(L, -2, i+1);
+        lua_call(L, 4, 0);
     }
-    return 1;
+    return 0;
 }
 
 static const struct luaL_Reg lib[] =
@@ -117,6 +123,7 @@ static const struct luaL_Reg lib[] =
     {"wait", lwait},
     
     {"poll", lpoll},
+    {"register", lregister},
 
     {NULL,NULL}
 };

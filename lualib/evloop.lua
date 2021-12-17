@@ -7,13 +7,13 @@ local _M = {}
 local aefd, stop
 function _M.start(endpoint, on_accept)
     aefd = socket.new_poll()
+    timer.init_timer()
     if not endpoint and not on_accept then
         print("just to be a client")
         return
     end
     assert(type(endpoint) == "string", "your need provide `host:port`(string type) for listennig")
     assert(type(on_accept) == "function", "your need provide a function to accept a client")
-    timer.init_timer()
     socket.listen(endpoint, on_accept)
 end
 
