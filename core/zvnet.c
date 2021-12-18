@@ -26,6 +26,8 @@ int main(int argc, char** argv) {
     if (argc > 1) {
         lua_pushcfunction(L, traceback);
         int r = luaL_loadfile(L, argv[1]);
+        lua_pushlightuserdata(L, NULL);
+        lua_setglobal(L, "null");
         if (LUA_OK != r) {
             const char* err = lua_tostring(L, -1);
             fprintf(stderr, "can't load %s err:%s\n", argv[1], err);

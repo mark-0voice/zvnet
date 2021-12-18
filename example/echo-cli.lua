@@ -27,13 +27,13 @@ else
     print("block_connect 127.0.0.1:8989 error:", err)
 end
 
-local function recv_from_console(fd)
+local function console_loop(fd)
     while true do
         local cmd = socket.readline(fd)
         socket.write(clientfd, cmd .. "\n")
     end
 end
 
-socket.bind(0, recv_from_console)
+socket.bind(0, console_loop)
 
 evloop.run()

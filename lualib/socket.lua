@@ -6,6 +6,7 @@ local timer = require "timer"
 local tab_isempty = require "table.isempty"
 local tab_remove = table.remove
 local tab_unpack = table.unpack or unpack
+local tab_concat = table.concat
 
 local _M = {}
 local AE_READABLE = 1
@@ -122,7 +123,7 @@ local function ev_client_handler(s, readable, writable, _)
                     end
                 end
             end
-            if n == sz and sz < 4096 then
+            if n == sz and sz < 2048 then
                 s.read_step = s.read_step * 2;
             elseif n > 64 and n*2 < sz then
                 s.read_step = s.read_step / 2;
@@ -140,7 +141,7 @@ end
 
 local function ev_connect_handler(s, readable, writable, errevent)
     if errevent then
-        coroutine_resume(s.co, false, errevent)
+        coroutine_resume(s.co, nil, errevent)
         return
     end
     if not readable and writable then
@@ -281,6 +282,10 @@ function _M.read(fd, sz)
 end
 
 function _M.write(fd, buf)
+    local typ = type(buf)
+    if typ == "table" then
+        buf = tab_concat(buf)
+    end
     if #buf == 0 then
         return true
     end
@@ -361,7 +366,7 @@ local function simple_connect(ip, port)
     caller[running] = nil
     if not ok then
         close(fd)
-        return -1, err
+        return nil, err
     end
     bind(fd)
     return fd
@@ -385,7 +390,7 @@ local function pool_connect(ip, port, spool)
     if not ok then
         spool.connections = spool.connections - 1
         close(fd)
-        return -1, err
+        return nil, err
     end
     if spool.connections <= spool.pool_size then
         spool.free[fd] = sock
@@ -414,13 +419,13 @@ function _M.connect(ip, port, opts)
     if spool.backlog >= 0 then
         if spool.connections > spool.pool_size + spool.backlog then
             spool.connections = spool.connections - 1
-            return -1, "too many connect operations"
+            return nil, "too many connect operations"
         end
         if spool.connections > spool.pool_size then
             spool.wait[#spool.wait+1] = running
             spool.wait_timer[running] = timer.add_timer(spool.wait_timeout, function ()
                 tab_remove(spool.wait, 1)
-                coroutine_resume(running, -1, "timeout")
+                coroutine_resume(running, nil, "timeout")
             end)
             caller[running] = -1
             local fd, err = coroutine_yield()

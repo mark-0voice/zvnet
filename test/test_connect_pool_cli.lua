@@ -7,7 +7,7 @@ local evloop = require "evloop"
 
 evloop.start()
 
-local function recv_from_console(fd)
+local function console_loop(fd)
     local i = 0
     while true do
         -- local cmd = socket.readline(fd)
@@ -30,6 +30,6 @@ local function recv_from_console(fd)
     end
 end
 
-socket.bind(0, recv_from_console)
+socket.bind(0, console_loop)
 
 evloop.run()

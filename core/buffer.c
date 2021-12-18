@@ -298,9 +298,7 @@ int buffer_drain(buffer_t *buf, uint32_t len) {
 
         buf->total_len -= len;
         remaining = len;
-        for (chain = buf->first;
-             remaining >= chain->off;
-             chain = next) {
+        for (chain = buf->first; remaining >= chain->off; chain = next) {
             next = chain->next;
             remaining -= chain->off;
 
@@ -369,75 +367,75 @@ int buffer_search(buffer_t *buf, const char* sep, const int seplen) {
 
 uint8_t * buffer_write_atmost(buffer_t *p) {
     buf_chain_t *chain, *next, *tmp, *last_with_data;
-	uint8_t *buffer;
-	uint32_t remaining;
-	int removed_last_with_data = 0;
-	int removed_last_with_datap = 0;
+    uint8_t *buffer;
+    uint32_t remaining;
+    int removed_last_with_data = 0;
+    int removed_last_with_datap = 0;
 
-	chain = p->first;
+    chain = p->first;
     uint32_t size = p->total_len;
 
     if (chain->off >= size) {
         return chain->buffer + chain->misalign;
     }
 
-	remaining = size - chain->off;
-	for (tmp=chain->next; tmp; tmp=tmp->next) {
-		if (tmp->off >= (size_t)remaining)
-			break;
-		remaining -= tmp->off;
-	}
+    remaining = size - chain->off;
+    for (tmp=chain->next; tmp; tmp=tmp->next) {
+        if (tmp->off >= (size_t)remaining)
+            break;
+        remaining -= tmp->off;
+    }
     if (chain->buffer_len - chain->misalign >= (size_t)size) {
-		/* already have enough space in the first chain */
-		size_t old_off = chain->off;
-		buffer = chain->buffer + chain->misalign + chain->off;
-		tmp = chain;
-		tmp->off = size;
-		size -= old_off;
-		chain = chain->next;
-	} else {
-		if ((tmp = buf_chain_new(size)) == NULL) {
-			return NULL;
-		}
-		buffer = tmp->buffer;
-		tmp->off = size;
-		p->first = tmp;
-	}
+        /* already have enough space in the first chain */
+        size_t old_off = chain->off;
+        buffer = chain->buffer + chain->misalign + chain->off;
+        tmp = chain;
+        tmp->off = size;
+        size -= old_off;
+        chain = chain->next;
+    } else {
+        if ((tmp = buf_chain_new(size)) == NULL) {
+            return NULL;
+        }
+        buffer = tmp->buffer;
+        tmp->off = size;
+        p->first = tmp;
+    }
 
-	last_with_data = *p->last_with_datap;
-	for (; chain != NULL && (size_t)size >= chain->off; chain = next) {
-		next = chain->next;
+    last_with_data = *p->last_with_datap;
+    for (; chain != NULL && (size_t)size >= chain->off; chain = next) {
+        next = chain->next;
 
-		if (chain->buffer) {
-			memcpy(buffer, chain->buffer + chain->misalign, chain->off);
-			size -= chain->off;
-			buffer += chain->off;
-		}
-		if (chain == last_with_data)
-			removed_last_with_data = 1;
-		if (&chain->next == p->last_with_datap)
-			removed_last_with_datap = 1;
+        if (chain->buffer) {
+            memcpy(buffer, chain->buffer + chain->misalign, chain->off);
+            size -= chain->off;
+            buffer += chain->off;
+        }
+        if (chain == last_with_data)
+            removed_last_with_data = 1;
+        if (&chain->next == p->last_with_datap)
+            removed_last_with_datap = 1;
 
-		free(chain);
-	}
+        free(chain);
+    }
 
-	if (chain != NULL) {
-		memcpy(buffer, chain->buffer + chain->misalign, size);
-		chain->misalign += size;
-		chain->off -= size;
-	} else {
-		p->last = tmp;
-	}
+    if (chain != NULL) {
+        memcpy(buffer, chain->buffer + chain->misalign, size);
+        chain->misalign += size;
+        chain->off -= size;
+    } else {
+        p->last = tmp;
+    }
 
-	tmp->next = chain;
+    tmp->next = chain;
 
-	if (removed_last_with_data) {
-		p->last_with_datap = &p->first;
-	} else if (removed_last_with_datap) {
-		if (p->first->next && p->first->next->off)
-			p->last_with_datap = &p->first->next;
-		else
-			p->last_with_datap = &p->first;
-	}
+    if (removed_last_with_data) {
+        p->last_with_datap = &p->first;
+    } else if (removed_last_with_datap) {
+        if (p->first->next && p->first->next->off)
+            p->last_with_datap = &p->first->next;
+        else
+            p->last_with_datap = &p->first;
+    }
     return tmp->buffer + tmp->misalign;
 }
