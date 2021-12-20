@@ -31,7 +31,7 @@ macosx : EXPORT :=
 LUA_CLIB_ZVNET = \
 	lua-ae.c \
 	lua-anet.c \
-	lua-core.c \
+	lua-core.c lsha1.c\
 	lua-buffer.c
 
 CFLAGS = -g -O2 -Wall -I$(LUA_INC_PATH)

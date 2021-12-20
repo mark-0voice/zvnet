@@ -8,5 +8,8 @@
         "epoll.h": "c",
         "poll.h": "c",
         "lauxlib.h": "c"
-    }
+    },
+    "Lua.diagnostics.globals": [
+        "null"
+    ]
 }

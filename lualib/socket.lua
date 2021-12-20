@@ -118,7 +118,7 @@ local function ev_client_handler(s, readable, writable, _)
                     end
                 elseif tp == "number" then
                     local buf = s.rbuffer:readn(s.read_need)
-                    if n >= s.read_need then
+                    if #buf >= s.read_need then
                         coroutine_resume(s.co, buf)
                     end
                 end

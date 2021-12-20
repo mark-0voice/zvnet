@@ -14,9 +14,15 @@ lwall(lua_State *L) {
     return 1;
 }
 
+// defined in lsha1.c
+int lsha1(lua_State *L);
+int lhmac_sha1(lua_State *L);
+
 static const struct luaL_Reg lib[] = {
     {"mono", lmono},
     {"wall", lwall},
+    {"sha1", lsha1},
+    {"hmac_sha1", lhmac_sha1},
     {NULL, NULL}
 };
 

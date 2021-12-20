@@ -9,7 +9,7 @@
 #define MAX_TO_COPY_IN_EXPAND 4096
 #define BUFFER_CHAIN_MAX_AUTO_SIZE 4096
 #define MAX_TO_REALIGN_IN_EXPAND 2048
-#define BUFFER_CHAIN_MAX 10*1024*1024  // 10M
+#define BUFFER_CHAIN_MAX 16*1024*1024  // 16M
 #define BUFFER_CHAIN_EXTRA(t, c) (t *)((buf_chain_t *)(c) + 1)
 #define BUFFER_CHAIN_SIZE sizeof(buf_chain_t)
 
