@@ -3,7 +3,6 @@
 #include <lua.h>
 #include <lauxlib.h>
 #include <arpa/inet.h>
-#include <stdlib.h>
 
 static int
 llisten(lua_State *L) {

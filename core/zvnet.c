@@ -1,13 +1,16 @@
-// #include "reactor.h"
 #include <stdio.h>
-#include <stdlib.h>
-
+#include "zvmalloc.h"
 #include <luajit.h>
 #include <lualib.h>
 #include <lauxlib.h>
 
-// cd luajit && make && sudo make install
-// sudo ldconfig
+typedef struct {
+    size_t mem;
+    size_t mem_level;
+} lstate_t;
+
+const size_t MEMLVL = 2097152; // 2M
+const size_t MEM_1MB = 1048576; // 1M
 
 static int
 traceback (lua_State *L) {
@@ -20,8 +23,35 @@ traceback (lua_State *L) {
     return 1;
 }
 
+void *
+lua_alloc(void *ud, void *ptr, size_t osize, size_t nsize) {
+    lstate_t *s = (lstate_t*)ud;
+    s->mem += nsize;
+    if (ptr) s->mem -= osize;
+    if (s->mem > s->mem_level) {
+        do {
+            s->mem_level += MEMLVL;
+        } while (s->mem > s->mem_level);
+        
+        printf("luajit vm now use %.2f M's memory up\n", (float)s->mem / MEM_1MB);
+    } else if (s->mem < s->mem_level - MEMLVL) {
+        do {
+            s->mem_level -= MEMLVL;
+        } while (s->mem < s->mem_level);
+        
+        printf("luajit vm now use %.2f M's memory down\n", (float)s->mem / MEM_1MB);
+    }
+	if (nsize == 0) {
+		free(ptr);
+		return NULL;
+	} else {
+		return realloc(ptr, nsize);
+	}
+}
+
 int main(int argc, char** argv) {
-    lua_State *L = luaL_newstate();
+    lstate_t ud = {0, MEMLVL};
+    lua_State *L = lua_newstate(lua_alloc, &ud);
     luaL_openlibs(L);
     if (argc > 1) {
         lua_pushcfunction(L, traceback);

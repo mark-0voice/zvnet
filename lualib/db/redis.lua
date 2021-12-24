@@ -1,4 +1,5 @@
 -- Copyright (C) Yichun Zhang (agentzh)
+-- modified by mark
 
 local socket = require "socket"
 local readline = socket.readline
@@ -309,7 +310,7 @@ end
 local function _check_subscribed(self, res)
     if type(res) == "table"
        and (res[1] == "subscribe" or res[1] == "psubscribe")
-   then
+    then
         if res[1] == "subscribe" then
             self._n_channel.unsubscribe = self._n_channel.unsubscribe + 1
 

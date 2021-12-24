@@ -9,7 +9,7 @@
             "type": "cppdbg",
             "request": "launch",
             "program": "${workspaceFolder}/zvnet",
-            "args": ["${workspaceFolder}/example/echo-srv.lua"],
+            "args": ["${workspaceFolder}/test/test_connect_pool_srv.lua"],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
             "environment": [],

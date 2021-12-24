@@ -1,3 +1,10 @@
 zvnet
 luaclib
 zvnet.dSYM
+*.[od]
+*.sym
+deps/jemalloc/Makefile
+deps/jemalloc/include/jemalloc/internal/private_namespace.gen.h
+deps/jemalloc/include/jemalloc/internal/private_namespace.h
+deps/jemalloc/config.log
+deps/jemalloc/lib/libjemalloc*

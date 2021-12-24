@@ -1,5 +1,5 @@
 
-#include <stdlib.h>
+#include "zvmalloc.h"
 #include <string.h>
 #include <stdbool.h>
 #include "buffer.h"
