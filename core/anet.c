@@ -1,5 +1,13 @@
 #include "anet.h"
 
+enum TCP_SOCK_OPTION {
+    SOCK_OPT_KEEPALIVE = 1,
+    SOCK_OPT_REUSEADDR,
+    SOCK_OPT_TCP_NODELAY,
+    SOCK_OPT_SNDBUF,
+    SOCK_OPT_RCVBUF,
+};
+
 int
 anet_tcp_listen(const char *bindaddr, int port, int backlog) {
     char _port[6];  /* strlen("65535") */
@@ -21,7 +29,7 @@ anet_tcp_listen(const char *bindaddr, int port, int backlog) {
     for (p = servinfo; p != NULL; p = p->ai_next) {
         if ((s = socket(p->ai_family,p->ai_socktype,p->ai_protocol)) == -1)
             continue;
-        if (_anet_set_reuse_addr(s) == -1) goto error;
+        if (anet_tcp_setoption(s, SOCK_OPT_REUSEADDR, 1) == -1) goto error;
         if (bind(s, p->ai_addr, p->ai_addrlen) == -1) goto error;
         if (listen(s, backlog) == -1) goto error;
         if (_anet_tcp_set_nonblock(s) == -1) goto error;
@@ -81,8 +89,8 @@ int anet_tcp_connect(const char *addr, int port) {
         if ((s = socket(p->ai_family,p->ai_socktype,p->ai_protocol)) == -1)
             continue;
 
-        if (_anet_set_reuse_addr(s) == -1) goto error;
-        if (_anet_tcp_set_keepalive(s) == -1) goto error;
+        if (anet_tcp_setoption(s, SOCK_OPT_REUSEADDR, 1) == -1) goto error;
+        if (anet_tcp_setoption(s, SOCK_OPT_KEEPALIVE, 1) == -1) goto error;
         if (_anet_tcp_set_nonblock(s) == -1) goto error;
 
         if (connect(s, p->ai_addr, p->ai_addrlen) == -1 && errno != EINPROGRESS) {
@@ -144,17 +152,40 @@ int _anet_tcp_set_nonblock(int fd) {
 	return fcntl(fd, F_SETFL, flag | O_NONBLOCK);
 }
 
-int _anet_tcp_set_keepalive(int fd) {
-    int val = 1;
-	return setsockopt(fd, SOL_SOCKET, SO_KEEPALIVE, (void *)&val , sizeof(val));
+int anet_tcp_getoption(int fd, int option, int *val) {
+    socklen_t len = sizeof(int);
+    switch (option) {
+    case SOCK_OPT_KEEPALIVE:
+        return getsockopt(fd, SOL_SOCKET, SO_KEEPALIVE, (void *) val, &len);
+    case SOCK_OPT_REUSEADDR:
+        return getsockopt(fd, SOL_SOCKET, SO_REUSEADDR, (void *) val, &len);
+    case SOCK_OPT_TCP_NODELAY:
+        return getsockopt(fd, IPPROTO_TCP, TCP_NODELAY, (void *) val, &len);
+    case SOCK_OPT_SNDBUF:
+        return getsockopt(fd, SOL_SOCKET, SO_RCVBUF, (void *) val, &len);
+    case SOCK_OPT_RCVBUF:
+        return getsockopt(fd, SOL_SOCKET, SO_SNDBUF, (void *) val, &len);
+    default:
+        return -2;
+    }
+    return 0;
 }
 
-int anet_tcp_set_nodelay(int fd) {
-    int val = 1;
-    return setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &val, sizeof(val));
-}
-
-int _anet_set_reuse_addr(int fd) {
-    int yes = 1;
-    return setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(yes));
+int anet_tcp_setoption(int fd, int option, int val) {
+    socklen_t len = sizeof(int);
+    switch (option) {
+    case SOCK_OPT_KEEPALIVE:
+        return setsockopt(fd, SOL_SOCKET, SO_KEEPALIVE, (const void *) &val, len);
+    case SOCK_OPT_REUSEADDR:
+        return setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, (const void *) &val, len);
+    case SOCK_OPT_TCP_NODELAY:
+        return setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, (const void *) &val, len);
+    case SOCK_OPT_SNDBUF:
+        return setsockopt(fd, SOL_SOCKET, SO_RCVBUF, (const void *) &val, len);
+    case SOCK_OPT_RCVBUF:
+        return setsockopt(fd, SOL_SOCKET, SO_SNDBUF, (const void *) &val, len);
+    default:
+        return -2;
+    }
+    return 0;
 }

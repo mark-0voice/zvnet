@@ -52,7 +52,6 @@ end
 
 local caller = {}
 
-
 local aefd
 
 local function close(fd)
@@ -78,6 +77,43 @@ local function close(fd)
 end
 
 _M.close = close
+
+local option_idx = {
+    ["keepalive"]   = 1,
+    ["reuseaddr"]   = 2,
+    ["tcp-nodelay"] = 3,
+    ["sndbuf"]      = 4,
+    ["rcvbuf"]      = 5,
+}
+
+local function setoption(fd, option, value)
+    if option == nil then
+        return false, 'missing the "option" argument'
+    end
+
+    if value == nil then
+        return false, 'missing the "value" argument'
+    end
+
+    if option_idx[option] == nil then
+        return false, "unsupported option " .. tostring(option)
+    end
+
+    return anet.setoption(fd, option_idx[option], value)
+end
+_M.setoption = setoption
+
+local function getoption(fd, option)
+    if option == nil then
+        return nil, 'missing the "option" argument'
+    end
+
+    if option_idx[option] == nil then
+        return nil, "unsupported option " .. tostring(option)
+    end
+    return anet.getoption(fd, option_idx[option])
+end
+_M.getoption = getoption
 
 local function ev_base_handler(fd, readable, writable, errevent)
     local s = assert(socket_pool[fd])

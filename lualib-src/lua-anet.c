@@ -3,6 +3,7 @@
 #include <lua.h>
 #include <lauxlib.h>
 #include <arpa/inet.h>
+#include <stdbool.h>
 
 static int
 llisten(lua_State *L) {
@@ -48,11 +49,47 @@ ltcp_close(lua_State *L) {
 }
 
 static int
-ltcp_nodelay(lua_State *L) {
+ltcp_getopt(lua_State *L) {
     int fd = luaL_checkinteger(L, 1);
-    int ret = anet_tcp_set_nodelay(fd);
-    lua_pushinteger(L, ret);
-    return 1;
+    int option = luaL_checkinteger(L, 2);
+    int val = 0;
+    int ret = anet_tcp_getoption(fd, option, &val);
+    switch (ret) {
+    case -1:
+        lua_pushnil(L);
+        lua_pushstring(L, strerror(errno));
+        break;
+    case -2:
+        lua_pushnil(L);
+        lua_pushfstring(L, "unsupported option %d", option);
+        break;
+    default:
+        lua_pushinteger(L, val);
+        return 1;
+    }
+    return 2;
+}
+
+static int
+ltcp_setopt(lua_State *L) {
+    int fd = luaL_checkinteger(L, 1);
+    int option = luaL_checkinteger(L, 2);
+    int val = luaL_optinteger(L, 3, 1);
+    int ret = anet_tcp_setoption(fd, option, val);
+    switch (ret) {
+    case -1:
+        lua_pushboolean(L, false);
+        lua_pushstring(L, strerror(errno));
+        break;
+    case -2:
+        lua_pushboolean(L, false);
+        lua_pushfstring(L, "unsupported option %d", option);
+        break;
+    default:
+        lua_pushboolean(L, true);
+        return 1;
+    }
+    return 2;
 }
 
 static const struct luaL_Reg lib[] = {
@@ -62,7 +99,8 @@ static const struct luaL_Reg lib[] = {
     {"connect", ltcp_connect},
     {"close", ltcp_close},
 
-    {"nodelay", ltcp_nodelay},
+    {"getoption", ltcp_getopt},
+    {"setoption", ltcp_setopt},
     {NULL, NULL}
 };
 

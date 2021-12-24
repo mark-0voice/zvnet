@@ -5,7 +5,8 @@
             "includePath": [
                 "${workspaceFolder}/**",
                 "${workspaceFolder}/core/**",
-                "/usr/local/include/luajit-2.1"
+                "${workspaceFolder}/deps/luajit2/**",
+                "${workspaceFolder}/deps/jemalloc/include/jemalloc/**"
             ],
             "defines": [],
             "compilerPath": "/usr/bin/gcc",

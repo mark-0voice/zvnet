@@ -21,6 +21,8 @@ end
 evloop.start("0.0.0.0:8989", function (fd, ip, port)
     print("accept a connection:", fd, ip, port)
     socket.bind(fd, client_loop)
+    print("write buffer size:", socket.getoption(fd, "sndbuf"))
+    print("read buffer size:", socket.getoption(fd, "rcvbuf"))
 end)
 
 evloop.run()

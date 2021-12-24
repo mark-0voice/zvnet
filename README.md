@@ -4,30 +4,49 @@
 
 
 
-# 克隆 zvnet 源代码
+### 依赖
 
-#### 安装编译
+#### ubuntu
 
-1.  centos、ubuntu：
+```shell
+apt-get install autoconf
+```
 
-    ```shell
-    make linux
-    ```
+#### centos
 
-2.  macos：
+```shell
+yum install -y autoconf
+```
 
-    ```shell
-    make macosx
-    ```
+#### macos
+
+```shell
+brew install autoconf
+```
+
+
+### 安装编译
+
+#### centos、ubuntu
+
+```shell
+make linux
+```
+
+#### macos
+
+```shell
+make macosx
+```
 
 
 
-#### 使用说明
+### 使用说明
 
 ```shell
 # 开启服务端
 ./zvnet example/echo-srv.lua
-# 开启客户端
+# 另起一个终端：开启客户端
 ./zvnet example/echo-cli.lua
 ```
 

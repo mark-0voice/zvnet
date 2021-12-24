@@ -25,8 +25,7 @@ int anet_tcp_write(int fd, const void* buf, int sz);
 
 //-- utils
 int _anet_tcp_set_nonblock(int fd);
-int _anet_tcp_set_keepalive(int fd);
-int anet_tcp_set_nodelay(int fd);
-int _anet_set_reuse_addr(int fd);
+int anet_tcp_getoption(int fd, int option, int *val);
+int anet_tcp_setoption(int fd, int option, int val);
 
 #endif
