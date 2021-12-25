@@ -2,6 +2,8 @@ local core = require "zvnet.core"
 
 local new_tab = require "table.new"
 
+local zv = require "zv"
+
 local math_floor = math.floor
 
 local _M = {}
@@ -100,10 +102,20 @@ function _M.real_time()
     return core.wall()
 end
 
+local function safe_call_timer(func)
+    return function (closed)
+        if closed then return end -- recycle coroutine
+        local ok, err = xpcall(func, debug.traceback)
+        if not ok then
+            print(err)
+        end
+    end
+end
+
 local function add_timer(csec, func)
     local ele = new_tab(3, 0)
     n = n+1
-    ele[1], ele[2], ele[3] = n, now_tick + csec, func
+    ele[1], ele[2], ele[3] = n, now_tick + csec, zv.co_create(safe_call_timer(func))
     -- print("add timer", csec, ele[2])
     minheap[n] = ele
     local idx = min_heap_shift_up(n)
@@ -115,6 +127,7 @@ _M.add_timer = add_timer
 
 local function del_timer(ele)
     min_heap_erase(ele)
+    zv.co_resume(ele[3], true)
     -- dump_timer("del_timer")
 end
 
@@ -140,12 +153,9 @@ local function expire_timer()
             return diff * 10
         end
         -- print("expire timer", now_tick)
-        local _, err = xpcall(ele[3], debug.traceback)
-        if err then
-            print(err)
-        end
-        -- dump_timer("expire_timer")
         min_heap_pop()
+        zv.co_resume(ele[3])
+        -- dump_timer("expire_timer")
     end
 end
 

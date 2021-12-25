@@ -2,11 +2,12 @@ local ae = require "zvnet.ae"
 local anet = require "zvnet.anet"
 local buffer = require "zvnet.buffer"
 local timer = require "timer"
+local zv = require "zv"
 
 local tab_isempty = require "table.isempty"
 local tab_remove = table.remove
-local tab_unpack = table.unpack or unpack
 local tab_concat = table.concat
+local traceback = debug.traceback
 
 local _M = {}
 local AE_READABLE = 1
@@ -21,34 +22,6 @@ local socket_pool = setmetatable({},{
 })
 
 local connection_pool = {}
-
-local coroutine_create = coroutine.create
-local coroutine_yield = coroutine.yield
-local coroutine_resume = coroutine.resume
-local coroutine_running = coroutine.running
-local traceback = debug.traceback
-
-local coroutine_pool = setmetatable({}, { __mode = "kv" })
-
-local function co_create(f)
-    assert(f)
-    local co = tab_remove(coroutine_pool)
-    if co == nil then
-        co = coroutine_create(function (...)
-            f(...)
-            while true do
-                f = nil
-                coroutine_pool[#coroutine_pool+1] = co
-                print("coroutine_pool size", #coroutine_pool)
-                f = coroutine_yield()
-                f(coroutine_yield())
-            end
-        end)
-    else
-        coroutine_resume(co, f)
-    end
-    return co
-end
 
 local caller = {}
 
@@ -125,7 +98,7 @@ end
 
 local function ev_listen_handler(s, readable, writable, _)
     if readable and not writable then
-        coroutine_resume(s.co)
+        zv.co_resume(s.co)
     end
 end
 
@@ -137,7 +110,7 @@ local function ev_client_handler(s, readable, writable, _)
         local n, err = s.rbuffer:read(s.fd, sz)
         if not n then
             if s.fd == usefd then
-                return coroutine_resume(s.co, n, err)
+                return zv.co_resume(s.co, n, err)
             else
                 s.errmsg = err
                 return
@@ -149,12 +122,12 @@ local function ev_client_handler(s, readable, writable, _)
                 if tp == "string" then
                     local buf = s.rbuffer:readline(s.read_need)
                     if buf ~= nil then
-                        coroutine_resume(s.co, buf)
+                        zv.co_resume(s.co, buf)
                     end
                 elseif tp == "number" then
                     local buf = s.rbuffer:readn(s.read_need)
                     if #buf >= s.read_need then
-                        coroutine_resume(s.co, buf)
+                        zv.co_resume(s.co, buf)
                     end
                 end
             end
@@ -176,11 +149,11 @@ end
 
 local function ev_connect_handler(s, readable, writable, errevent)
     if errevent then
-        coroutine_resume(s.co, nil, errevent)
+        zv.co_resume(s.co, nil, errevent)
         return
     end
     if not readable and writable then
-        coroutine_resume(s.co, true)
+        zv.co_resume(s.co, true)
     end
 end
 
@@ -218,11 +191,11 @@ function _M.listen(endpoint, on_accept)
     print("listen:", host, port)
     port = tonumber(port)
     local fd = anet.listen(host, port, 32)
-    local co = co_create(function ()
+    local co = zv.co_create(function ()
         while true do
             local clientfd, ip, clientport = anet.accept(fd)
             if clientfd == 0 then
-                coroutine_yield()
+                zv.co_yield()
             else
                 on_accept(clientfd, ip, clientport)
             end
@@ -240,7 +213,7 @@ function _M.listen(endpoint, on_accept)
 end
 
 local function bind(fd, logic)
-    local co = coroutine_running()
+    local co = zv.co_running()
     local s = socket_pool[fd]
     if s ~= nil then
         ae.enable(aefd, fd, true, false)
@@ -252,7 +225,7 @@ local function bind(fd, logic)
         s.ev_handler = ev_client_handler
     else
         assert(logic and type(logic) == "function")
-        co = co_create(function ()
+        co = zv.co_create(function ()
             local ok, err = xpcall(logic, traceback, fd)
             if not ok then
                 print(err)
@@ -272,7 +245,7 @@ local function bind(fd, logic)
             errmsg = nil,
         }
     end
-    coroutine_resume(co)
+    zv.co_resume(co)
 end
 
 _M.bind = bind
@@ -290,7 +263,7 @@ function _M.readline(fd, sep)
     local err
     s.read_need = sep
     caller[s.co] = fd
-    buf, err = coroutine_yield(s.co)
+    buf, err = zv.co_yield(s.co)
     caller[s.co] = nil
     s.read_need = false
     return buf, err
@@ -308,7 +281,7 @@ function _M.read(fd, sz)
     end
     s.read_need = sz
     caller[s.co] = fd
-    local ok, err = coroutine_yield()
+    local ok, err = zv.co_yield()
     caller[s.co] = nil
     s.read_need = false
     if not ok then
@@ -382,14 +355,14 @@ local function get_alive_peer(spool)
         spool.free[min] = ele
         spool.cache[min] = nil
         ele.status = "free"
-        ele.co = coroutine_running()
+        ele.co = zv.co_running()
         ele.ev_handler = event_handler.client
         return ele
     end
 end
 
 local function simple_connect(ip, port)
-    local running = coroutine_running()
+    local running = zv.co_running()
     local fd = anet.connect(ip, port)
     ae.add_write(aefd, fd)
     socket_pool[fd] = {
@@ -398,7 +371,7 @@ local function simple_connect(ip, port)
         ev_handler = event_handler.connect,
     }
     caller[running] = fd
-    local ok, err = coroutine_yield()
+    local ok, err = zv.co_yield()
     caller[running] = nil
     if not ok then
         close(fd)
@@ -409,7 +382,7 @@ local function simple_connect(ip, port)
 end
 
 local function pool_connect(ip, port, spool)
-    local running = coroutine_running()
+    local running = zv.co_running()
     local fd = anet.connect(ip, port)
     ae.add_write(aefd, fd)
     local sock = {
@@ -421,7 +394,7 @@ local function pool_connect(ip, port, spool)
     socket_pool[fd] = sock
     caller[running] = fd
     -- print("pool_connect begin yield", fd)
-    local ok, err = coroutine_yield()
+    local ok, err = zv.co_yield()
     caller[running] = nil
     if not ok then
         spool.connections = spool.connections - 1
@@ -440,7 +413,7 @@ function _M.connect(ip, port, opts)
     if not opts or (not opts.pool_size and not opts.backlog) then
         return simple_connect(ip, port)
     end
-    local running = coroutine_running()
+    local running = zv.co_running()
     local host = ip .. ":" .. port
     local spool = connection_pool[opts.pool or host]
     if not spool then
@@ -461,10 +434,10 @@ function _M.connect(ip, port, opts)
             spool.wait[#spool.wait+1] = running
             spool.wait_timer[running] = timer.add_timer(spool.wait_timeout, function ()
                 tab_remove(spool.wait, 1)
-                coroutine_resume(running, nil, "timeout")
+                zv.co_resume(running, nil, "timeout")
             end)
             caller[running] = -1
-            local fd, err = coroutine_yield()
+            local fd, err = zv.co_yield()
             caller[running] = nil
             if err then
                 spool.connections = spool.connections - 1
@@ -494,7 +467,7 @@ function _M.setkeepalive(fd)
         local co = tab_remove(spool.wait, 1)
         local tele = spool.wait_timer[co]
         timer.del_timer(tele)
-        coroutine_resume(co, fd)
+        zv.co_resume(co, fd)
         return
     end
     s.status = "cache"
@@ -509,12 +482,12 @@ function _M.event_wait(timeout)
 end
 
 function _M.sleep(csec)
-    local running = coroutine_running()
+    local running = zv.co_running()
     caller[running] = -1
     timer.add_timer(csec, function ()
-        coroutine_resume(running)
+        zv.co_resume(running)
     end)
-    coroutine_yield()
+    zv.co_yield()
     caller[running] = nil
 end
 
