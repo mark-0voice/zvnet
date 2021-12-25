@@ -61,6 +61,10 @@ local function min_heap_erase(ele)
     minheap[idx] = minheap[n]
     minheap[idx][1] = idx
     minheap[n] = nil
+    if n == idx then -- delete last element
+        n = n - 1
+        return
+    end
     n = n - 1
     if n < 2 then return end
     local parent = math_floor(idx/2)

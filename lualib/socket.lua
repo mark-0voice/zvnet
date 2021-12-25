@@ -326,7 +326,7 @@ local function create_pool(opts, host)
         wait_timeout = 500, -- 5秒
         connections = 0,
         backlog = opts.backlog or -1,
-        pool_size = 30,
+        pool_size = opts.pool_size or 30,
         pool_name = opts.pool or host,
     }
     local spool = setmetatable(default_pool, {
@@ -421,6 +421,7 @@ function _M.connect(ip, port, opts)
     else
         local ele = get_alive_peer(spool)
         if ele then
+            spool.connections = spool.connections + 1
             return ele.fd
         end
     end
@@ -433,8 +434,8 @@ function _M.connect(ip, port, opts)
         if spool.connections > spool.pool_size then
             spool.wait[#spool.wait+1] = running
             spool.wait_timer[running] = timer.add_timer(spool.wait_timeout, function ()
-                tab_remove(spool.wait, 1)
-                zv.co_resume(running, nil, "timeout")
+                local runco = tab_remove(spool.wait, 1)
+                zv.co_resume(runco, nil, "timeout")
             end)
             caller[running] = -1
             local fd, err = zv.co_yield()

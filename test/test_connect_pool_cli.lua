@@ -4,10 +4,11 @@ package.path = package.path .. ";./lualib/?.lua;"
 
 local socket = require "socket"
 local evloop = require "evloop"
+local timer = require "timer"
 
 evloop.start()
 
-local function console_loop(fd)
+local function test_loop()
     local i = 0
     while true do
         -- local cmd = socket.readline(fd)
@@ -30,6 +31,9 @@ local function console_loop(fd)
     end
 end
 
-socket.bind(0, console_loop)
+timer.add_timer(0, test_loop)
+timer.add_timer(0, test_loop)
+timer.add_timer(0, test_loop)
+timer.add_timer(0, test_loop)
 
 evloop.run()
