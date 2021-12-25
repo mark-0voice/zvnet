@@ -91,11 +91,7 @@ lflush(lua_State *L) {
         return 1;
     }
     buffer_drain(p, n);
-    if (n < p->total_len) {
-        lua_pushboolean(L, false);
-        return 1;
-    }
-    lua_pushboolean(L, true);
+    lua_pushboolean(L, p->total_len <= 0);
     return 1;
 }
 

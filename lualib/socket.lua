@@ -69,7 +69,6 @@ local function close(fd)
             if s.status and spool[s.status] then
                 spool[s.status][fd] = nil
             end
-            spool.connections = spool.connections - 1
         end
     end
     ae.del(aefd, fd)
@@ -167,7 +166,7 @@ local function ev_client_handler(s, readable, writable, _)
         end
     end
     if writable then
-        local ok = s.wbuffer:flush()
+        local ok = s.wbuffer:flush(s.fd)
         if s.writable and ok then
             s.writable = false
             ae.enable(aefd, s.fd, true, false)
@@ -235,6 +234,7 @@ function _M.listen(endpoint, on_accept)
         ev_handler = event_handler.listen,
     }
     socket_pool[fd] = s
+    setoption(fd, "tcp-nodelay", 1)
     ae.add_read(aefd, fd)
     return fd
 end
@@ -484,6 +484,7 @@ function _M.setkeepalive(fd)
         return
     end
     local spool = assert(connection_pool[s.pool_name])
+    spool.connections = spool.connections - 1
     -- print("setkeepalive", fd, spool.pool_name, s.status)
     if s.status ~= "free" then
         close(fd)
