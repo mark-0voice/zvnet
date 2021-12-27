@@ -4,7 +4,7 @@ package.path = package.path .. ";./lualib/?.lua;"
 
 local socket = require "socket"
 local evloop = require "evloop"
-local timer = require "timer"
+local zv = require "zv"
 
 local function client_loop(fd)
     local i = 1
@@ -53,20 +53,20 @@ else
     print("block_connect 127.0.0.1:6379 error:", err)
 end
 
-timer.add_timer(400, function ()
+zv.add_timer(400, function ()
     print("hello world 400")
 end)
-local ele = timer.add_timer(600, function ()
+local ele = zv.add_timer(600, function ()
     print("hello world 600")
 end)
-timer.add_timer(700, function ()
+zv.add_timer(700, function ()
     print("hello world 700")
 end)
-timer.add_timer(800, function ()
+zv.add_timer(800, function ()
     print("hello world 800")
 end)
-timer.del_timer(ele)
-timer.add_timer(900, function ()
+zv.del_timer(ele)
+zv.add_timer(900, function ()
     print("hello world 900")
 end)
 

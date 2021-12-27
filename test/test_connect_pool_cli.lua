@@ -4,7 +4,7 @@ package.path = package.path .. ";./lualib/?.lua;"
 
 local socket = require "socket"
 local evloop = require "evloop"
-local timer = require "timer"
+local zv = require "zv"
 
 evloop.start()
 
@@ -27,13 +27,13 @@ local function test_loop()
             end
         end
         i = i+1
-        socket.sleep(i<5 and 10 or 100)
+        zv.sleep(i<5 and 10 or 100)
     end
 end
 
-timer.add_timer(0, test_loop)
-timer.add_timer(0, test_loop)
-timer.add_timer(0, test_loop)
-timer.add_timer(0, test_loop)
+zv.fork(test_loop)
+zv.fork(test_loop)
+zv.fork(test_loop)
+zv.fork(test_loop)
 
 evloop.run()

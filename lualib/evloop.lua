@@ -1,13 +1,13 @@
 
 local socket = require "socket"
-local timer = require "timer"
+local zv = require "zv"
 
 local _M = {}
 
 local aefd, stop
 function _M.start(endpoint, on_accept)
     aefd = socket.new_poll()
-    timer.init_timer()
+    zv.init_timer()
     if not endpoint and not on_accept then
         print("just to be a client")
         return
@@ -24,7 +24,7 @@ end
 function _M.run()
     assert(aefd, "please call evloop.start first!")
     while not stop do
-        socket.event_wait(timer.expire_timer())
+        socket.event_wait(zv.expire_timer())
     end
     socket.free_poll()
 end

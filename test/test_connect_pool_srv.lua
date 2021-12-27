@@ -2,6 +2,7 @@
 package.cpath = package.cpath..";./luaclib/?.so;"
 package.path = package.path .. ";./lualib/?.lua;"
 
+local zv = require "zv"
 local socket = require "socket"
 local evloop = require "evloop"
 

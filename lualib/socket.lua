@@ -1,7 +1,6 @@
 local ae = require "zvnet.ae"
 local anet = require "zvnet.anet"
 local buffer = require "zvnet.buffer"
-local timer = require "timer"
 local zv = require "zv"
 
 local tab_isempty = require "table.isempty"
@@ -22,8 +21,6 @@ local socket_pool = setmetatable({},{
 })
 
 local connection_pool = {}
-
-local caller = {}
 
 local aefd
 
@@ -104,12 +101,12 @@ end
 
 local function ev_client_handler(s, readable, writable, _)
     assert(s)
-    local usefd = assert(caller[s.co])
+    local runfd = assert(zv.co_runfd(s.co))
     if readable then
         local sz = s.read_step
         local n, err = s.rbuffer:read(s.fd, sz)
         if not n then
-            if s.fd == usefd then
+            if s.fd == runfd then
                 return zv.co_resume(s.co, n, err)
             else
                 s.errmsg = err
@@ -117,7 +114,7 @@ local function ev_client_handler(s, readable, writable, _)
             end
         end
         if n > 0 then
-            if s.fd == usefd then
+            if s.fd == runfd then
                 local tp = type(s.read_need)
                 if tp == "string" then
                     local buf = s.rbuffer:readline(s.read_need)
@@ -176,7 +173,7 @@ local event_handler = {
 function _M.new_poll()
     aefd = ae.create()
     ae.register({
-        update_time = timer.update_cache_time,
+        update_time = zv.update_cache_time,
         ev_handler = event_handler.base,
     })
     return aefd
@@ -262,9 +259,9 @@ function _M.readline(fd, sep)
     end
     local err
     s.read_need = sep
-    caller[s.co] = fd
+    zv.co_attach(fd)
     buf, err = zv.co_yield(s.co)
-    caller[s.co] = nil
+    zv.co_detach(fd)
     s.read_need = false
     return buf, err
 end
@@ -280,9 +277,9 @@ function _M.read(fd, sz)
         return buf
     end
     s.read_need = sz
-    caller[s.co] = fd
+    zv.co_attach(fd)
     local ok, err = zv.co_yield()
-    caller[s.co] = nil
+    zv.co_detach(fd)
     s.read_need = false
     if not ok then
         return ok, err
@@ -370,9 +367,9 @@ local function simple_connect(ip, port)
         co = running,
         ev_handler = event_handler.connect,
     }
-    caller[running] = fd
+    zv.co_attach(fd)
     local ok, err = zv.co_yield()
-    caller[running] = nil
+    zv.co_detach(fd)
     if not ok then
         close(fd)
         return nil, err
@@ -392,10 +389,10 @@ local function pool_connect(ip, port, spool)
         ev_handler = ev_connect_handler,
     }
     socket_pool[fd] = sock
-    caller[running] = fd
+    zv.co_attach(fd)
     -- print("pool_connect begin yield", fd)
     local ok, err = zv.co_yield()
-    caller[running] = nil
+    zv.co_detach(fd)
     if not ok then
         spool.connections = spool.connections - 1
         close(fd)
@@ -433,13 +430,13 @@ function _M.connect(ip, port, opts)
         end
         if spool.connections > spool.pool_size then
             spool.wait[#spool.wait+1] = running
-            spool.wait_timer[running] = timer.add_timer(spool.wait_timeout, function ()
+            spool.wait_timer[running] = zv.add_timer(spool.wait_timeout, function ()
                 local runco = tab_remove(spool.wait, 1)
                 zv.co_resume(runco, nil, "timeout")
             end)
-            caller[running] = -1
+            zv.co_attach(-1)
             local fd, err = zv.co_yield()
-            caller[running] = nil
+            zv.co_detach(-1)
             if err then
                 spool.connections = spool.connections - 1
             else
@@ -467,7 +464,7 @@ function _M.setkeepalive(fd)
     if #spool.wait > 0 then
         local co = tab_remove(spool.wait, 1)
         local tele = spool.wait_timer[co]
-        timer.del_timer(tele)
+        zv.del_timer(tele)
         zv.co_resume(co, fd)
         return
     end
@@ -480,16 +477,6 @@ end
 
 function _M.event_wait(timeout)
     ae.poll(aefd, timeout or -1, 64)
-end
-
-function _M.sleep(csec)
-    local running = zv.co_running()
-    caller[running] = -1
-    timer.add_timer(csec, function ()
-        zv.co_resume(running)
-    end)
-    zv.co_yield()
-    caller[running] = nil
 end
 
 return _M
