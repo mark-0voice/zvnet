@@ -15,6 +15,7 @@ typedef struct buffer_s {
     buf_chain_t *last;
     buf_chain_t **last_with_datap;
     uint32_t total_len;
+    uint32_t last_read_pos; // for sep read
 } buffer_t;
 
 uint8_t* buffer_available_chunk(buffer_t *buf, uint32_t datlen);

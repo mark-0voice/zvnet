@@ -26,4 +26,7 @@ evloop.start("0.0.0.0:8989", function (fd, ip, port)
     print("read buffer size:", socket.getoption(fd, "rcvbuf"))
 end)
 
+local ele = zv.add_timer(100, function () end)
+zv.del_timer(ele)
+
 evloop.run()

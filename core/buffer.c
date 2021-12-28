@@ -293,9 +293,6 @@ int buffer_drain(buffer_t *buf, uint32_t len) {
         }
         ZERO_CHAIN(buf);
     } else {
-        if (len >= old_len)
-            len = old_len;
-
         buf->total_len -= len;
         remaining = len;
         for (chain = buf->first; remaining >= chain->off; chain = next) {
@@ -345,10 +342,18 @@ int buffer_search(buffer_t *buf, const char* sep, const int seplen) {
     chain = buf->first;
     if (chain == NULL)
         return 0;
-    int from = 0;
     int bytes = chain->off;
-    for (i = 0; i <= buf->total_len - seplen; i++) {
+    while (bytes <= buf->last_read_pos) {
+        chain = chain->next;
+        if (chain == NULL)
+            return 0;
+        bytes += chain->off;
+    }
+    bytes -= buf->last_read_pos;
+    int from = chain->off - bytes;
+    for (i = buf->last_read_pos; i <= buf->total_len - seplen; i++) {
         if (check_sep(chain, from, sep, seplen)) {
+            buf->last_read_pos = 0;
             return i+seplen;
         }
         ++from;
@@ -361,6 +366,7 @@ int buffer_search(buffer_t *buf, const char* sep, const int seplen) {
             bytes = chain->off;
         }
     }
+    buf->last_read_pos = i;
     return 0;
 }
 
