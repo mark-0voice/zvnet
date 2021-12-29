@@ -41,12 +41,12 @@ lua_alloc(void *ud, void *ptr, size_t osize, size_t nsize) {
         
         printf("luajit vm now use %.2f M's memory down\n", (float)s->mem / MEM_1MB);
     }
-	if (nsize == 0) {
-		free(ptr);
-		return NULL;
-	} else {
-		return realloc(ptr, nsize);
-	}
+    if (nsize == 0) {
+        free(ptr);
+        return NULL;
+    } else {
+        return realloc(ptr, nsize);
+    }
 }
 
 int main(int argc, char** argv) {

@@ -148,10 +148,10 @@ local now_tick
 
 function _M.init_timer()
     now_time = core.wall()
-    now_tick = 0
+    now_tick = core.mono()
 end
 
-function _M.cache_time()
+function _M.time()
     return now_time
 end
 
@@ -191,10 +191,10 @@ end
 _M.del_timer = del_timer
 
 local function update_cache_time()
-    local last_time = now_time
-    now_time = core.wall()
-    local diff = now_time - last_time
-    now_tick = now_tick + diff
+    local last_tick = now_tick
+    now_tick = core.mono()
+    local diff = now_tick - last_tick
+    now_time = now_time + diff
 end
 
 _M.update_cache_time = update_cache_time

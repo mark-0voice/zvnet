@@ -94,11 +94,12 @@ lpoll(lua_State *L) {
     event_t e[nfired];
     int n = ae_poll(aefd, e, nfired, timeout);
     lua_getfield(L, LUA_REGISTRYINDEX, "zvnet.update_time");
+    lua_pushvalue(L, 4);
     lua_call(L, 0, 0);
     lua_getfield(L, LUA_REGISTRYINDEX, "zvnet.ev_handler");
     for(int i = 0; i < n; i++)
     {
-        lua_pushvalue(L, 4);
+        lua_pushvalue(L, 5);
         lua_pushinteger(L, e[i].fd);
         lua_pushboolean(L, e[i].read);
         lua_pushboolean(L, e[i].write);
@@ -107,6 +108,8 @@ lpoll(lua_State *L) {
         else
             lua_pushnil(L);
         lua_call(L, 4, 0);
+        lua_pushvalue(L, 4);
+        lua_call(L, 0, 0);
     }
     return 0;
 }
