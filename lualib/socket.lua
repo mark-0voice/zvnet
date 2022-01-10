@@ -214,6 +214,7 @@ local function bind(fd, logic)
     local s = socket_pool[fd]
     if s ~= nil then
         ae.enable(aefd, fd, true, false)
+        s.co = co
         s.read_need = false
         s.read_step = 64
         s.rbuffer = buffer.new()
@@ -241,11 +242,16 @@ local function bind(fd, logic)
             ev_handler = event_handler.client,
             errmsg = nil,
         }
+        zv.co_resume(co)
     end
-    zv.co_resume(co)
 end
 
 _M.bind = bind
+
+function _M.rebind(fd)
+    local s = assert(socket_pool[fd])
+    s.co = zv.co_running()
+end
 
 function _M.readline(fd, sep)
     sep = sep or "\n"
@@ -281,10 +287,7 @@ function _M.read(fd, sz)
     local ok, err = zv.co_yield()
     zv.co_detach(fd)
     s.read_need = false
-    if not ok then
-        return ok, err
-    end
-    return ok
+    return ok, err
 end
 
 function _M.write(fd, buf)
@@ -309,7 +312,7 @@ function _M.block_connect(ip, port)
     local ok, err = ae.wait(fd, AE_WRITABLE)
     if not ok then
         close(fd)
-        return -1, err
+        return nil, err
     end
     return fd
 end
@@ -477,6 +480,12 @@ end
 
 function _M.event_wait(timeout)
     ae.poll(aefd, timeout or -1, 64)
+end
+
+function _M.onclose(fd, callback)
+    if socket_pool[fd] then
+        socket_pool[fd].close_cb = callback
+    end
 end
 
 return _M

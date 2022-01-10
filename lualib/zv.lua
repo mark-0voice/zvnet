@@ -66,7 +66,7 @@ _M.co_runfd = co_runfd
     ele = {idx, time, func}
 ]]
 local minheap = {}
-local n = 0
+local nele = 0
 
 local function min_heap_elem_greater(lht, rht)
     return lht[2] > rht[2]
@@ -95,8 +95,8 @@ end
 
 local function min_heap_shift_down(idx)
     local min_child = 2 * idx
-    while min_child <= n do
-        if min_child+1 <= n and min_heap_elem_greater(minheap[min_child], minheap[min_child+1]) then
+    while min_child <= nele do
+        if min_child+1 <= nele and min_heap_elem_greater(minheap[min_child], minheap[min_child+1]) then
             min_child = min_child + 1
         end
         if min_heap_elem_greater(minheap[min_child], minheap[idx]) then
@@ -111,15 +111,15 @@ end
 
 local function min_heap_erase(ele)
     local idx = ele[1]
-    minheap[idx] = minheap[n]
+    minheap[idx] = minheap[nele]
     minheap[idx][1] = idx
-    minheap[n] = nil
-    if n == idx then -- delete last element
-        n = n - 1
+    minheap[nele] = nil
+    if nele == idx then -- delete last element
+        nele = nele - 1
         return
     end
-    n = n - 1
-    if n < 2 then return end
+    nele = nele - 1
+    if nele < 2 then return end
     local parent = math_floor(idx/2)
     if parent > 0 and min_heap_elem_greater(minheap[parent], minheap[idx]) then
         min_heap_shift_up_unconditional(idx)
@@ -133,13 +133,13 @@ local function min_heap_top()
 end
 
 local function min_heap_pop()
-    if n > 0 then
+    if nele > 0 then
         min_heap_erase(minheap[1])
     end
 end
 
 -- local function dump_timer(desc)
---     for i=1, n do
+--     for i=1, nele do
 --         print(("%s=>idx=%d,expire=%d"):format(desc, minheap[i][1], minheap[i][2]))
 --     end
 -- end
@@ -171,11 +171,11 @@ end
 
 local function add_timer(csec, func)
     local ele = new_tab(3, 0)
-    n = n+1
-    ele[1], ele[2], ele[3] = n, now_tick + csec, co_create(safe_call_timer(func))
+    nele = nele+1
+    ele[1], ele[2], ele[3] = nele, now_tick + csec, co_create(safe_call_timer(func))
     -- print("add timer", csec, ele[2])
-    minheap[n] = ele
-    local idx = min_heap_shift_up(n)
+    minheap[nele] = ele
+    local idx = min_heap_shift_up(nele)
     -- dump_timer("add_timer")
     return minheap[idx]
 end
@@ -201,7 +201,7 @@ _M.update_cache_time = update_cache_time
 
 local function expire_timer()
     while true do
-        if n == 0 then
+        if nele == 0 then
             return -1
         end
         local ele = min_heap_top()

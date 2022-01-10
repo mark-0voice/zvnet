@@ -62,6 +62,8 @@ lwait(lua_State *L) {
     int mask = luaL_checkinteger(L, 2);
     int timeout = luaL_optinteger(L, 3, -1);
     int retmask = ae_wait(fd, mask, timeout);
+    lua_getfield(L, LUA_REGISTRYINDEX, "zvnet.update_time");
+    lua_call(L, 0, 0);
     if (retmask & mask) {
         lua_pushboolean(L, true);
         return 1;

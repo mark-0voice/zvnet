@@ -1035,6 +1035,8 @@ local function connect(self, host, port, opts)
 
     self.compact = opts.compact_arrays
 
+    self._proxy = opts.proxy -- whether use proxy mode
+
     self.database = opts.database or ""
     self.user = opts.user or ""
 
@@ -1073,8 +1075,8 @@ local function connect(self, host, port, opts)
         end
 
         fd, err = socket.connect(host, port, { pool = pool,
-                               pool_size = opts.pool_size,
-                               backlog = opts.backlog })
+                                pool_size = opts.pool_size,
+                                backlog = opts.backlog })
 
     -- else
     --     local path = opts.path
@@ -1235,7 +1237,7 @@ _M.send_query = send_query
 
 
 local function read_result(self, est_nrows)
-    if self.state ~= STATE_COMMAND_SENT then
+    if not self._proxy and self.state ~= STATE_COMMAND_SENT then
         return nil, "cannot read result in the current context: "
                     .. (self.state or "nil")
     end

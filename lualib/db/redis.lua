@@ -3,7 +3,7 @@
 
 local socket = require "socket"
 local readline = socket.readline
-local send = socket.writes
+local send = socket.write
 
 local sub = string.sub
 local byte = string.byte
@@ -25,7 +25,7 @@ local redis_sep = "\r\n"
 
 local new_tab = require "table.new"
 
-local _M = new_tab(0, 55)
+local _M = new_tab(0, 56)
 
 local common_cmds = {
     "get",      "set",          "mget",     "mset",
@@ -75,13 +75,8 @@ local function connect(host, port, opts)
                     typ, 2)
         end
     end
-
-    local ok, err
-    ok, err = socket.connect(host, port, opts)
-    if err then
-        return ok, err
-    end
-    return ok, err
+    
+    return socket.connect(host, port, opts)
 end
     
 function _M.new(host, port, opts)
@@ -91,6 +86,7 @@ function _M.new(host, port, opts)
     end
     return setmetatable({ _sock = sock,
                           _subscribed = false,
+                          _proxy = opts and opts.proxy, -- whether use proxy mode
                           _n_channel = {
                             unsubscribe = 0,
                             punsubscribe = 0,
@@ -253,6 +249,34 @@ local function _do_cmd(self, ...)
     local bytes, err = send(sock, req)
     if not bytes then
         return nil, err
+    end
+
+    local proxy = rawget(self, "_proxy")
+    if proxy then
+        return true
+    end
+
+    local res, err = _read_reply(self, sock)
+    while _check_msg(self, res) do
+        if rawget(self, "_buffered_msg") == nil then
+            self._buffered_msg = new_tab(1, 0)
+        end
+
+        tab_insert(self._buffered_msg, res)
+        res, err = _read_reply(self, sock)
+    end
+
+    return res, err
+end
+
+function _M.read_result(self)
+    local sock = rawget(self, "_sock")
+    if not sock then
+        return nil, "not initialized"
+    end
+    local proxy = rawget(self, "_proxy")
+    if not proxy then
+        return nil, "read_result must use in proxy mode"
     end
 
     local res, err = _read_reply(self, sock)
