@@ -17,3 +17,10 @@ local function table_dump( object )
 end
 
 table.dump = table_dump
+
+function Remember(func)
+    return setmetatable({}, {
+        __mode = "kv",
+        __index = func,
+    })
+end
