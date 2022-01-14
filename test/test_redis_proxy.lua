@@ -31,6 +31,10 @@ local function test_loop()
         return
     end
     print("name:", res, #res)
+    -- shell: restart redis
+    zv.sleep(1000) -- sleep 10 seconds
+    res, err = rds:get("name")
+    print("name:", res, err)
 end
 
 zv.fork(test_loop)

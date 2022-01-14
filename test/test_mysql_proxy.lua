@@ -21,6 +21,10 @@ local function test_loop()
     end
     local res, _ = db:query("select * from score order by sid limit 10", 10)
     print("=>", table.dump(res))
+    -- shell: service mysql restart
+    zv.sleep(1000) -- sleep 10 seconds
+    res, _ = db:query("select * from score order by sid limit 10", 10)
+    print("=>", table.dump(res))
 end
 
 zv.fork(test_loop)

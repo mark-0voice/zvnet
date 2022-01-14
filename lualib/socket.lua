@@ -40,9 +40,9 @@ local function close(fd)
                 spool[s.status][fd] = nil
             end
         end
+        ae.del(aefd, fd)
+        anet.close(fd)
     end
-    ae.del(aefd, fd)
-    anet.close(fd)
 end
 
 _M.close = close
@@ -106,6 +106,9 @@ local function ev_client_handler(s, readable, writable, _)
         local sz = s.read_step
         local n, err = s.rbuffer:read(s.fd, sz)
         if not n then
+            if s.close_cb then
+                s.close_cb()
+            end
             if s.fd == runfd then
                 return zv.co_resume(s.co, n, err)
             else

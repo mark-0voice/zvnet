@@ -7,6 +7,8 @@ local socket = require "socket"
 
 local db = false
 
+local disconnected = false
+
 local proxy = {}
 
 local backlog = {}
@@ -23,6 +25,7 @@ local function mysql_eventloop()
     while true do
         res, err, errno, sqlstate = db:read_result()
         if not res then
+            if disconnected then return end
             local badresult = {}
             badresult.badresult = true
             badresult.err = err
@@ -61,7 +64,7 @@ local function mysql_eventloop()
     end
 end
 
-function _M.instance(host, port, opts)
+local function instance(host, port, opts)
     if not db then
         local err
         db, err = mysql.new(host, port, {
@@ -75,6 +78,26 @@ function _M.instance(host, port, opts)
         })
         assert(db, err)
         local fd = assert(db.sock)
+        disconnected = false
+        socket.onclose(fd, function (_)
+            print("mysql_proxy onclose")
+            disconnected = true
+            socket.close(fd)
+            for _, co in ipairs(backlog) do
+                zv.co_resume(co, nil, "closed")
+            end
+            backlog = {}
+            setmetatable(proxy, {
+                __index = function (_, cmd)
+                    return function (_, ...)
+                        print("try reconnect mysql ...")
+                        db = false
+                        proxy = instance(host, port, opts)
+                        return proxy[cmd](proxy, ...)
+                    end
+                end
+            })
+        end)
         proxy = setmetatable({db}, {
             __index = function (_, cmd)
                 return function (self, ...)
@@ -84,6 +107,7 @@ function _M.instance(host, port, opts)
                     local res, err = self[1][cmd](self[1], ...)
                     if res then
                         backlog[#backlog+1] = zv.co_running()
+                        local fd = self[1].sock
                         zv.co_attach(fd)
                         res, err = zv.co_yield()
                         zv.co_detach(fd)
@@ -96,6 +120,8 @@ function _M.instance(host, port, opts)
     end
     return proxy
 end
+
+_M.instance = instance
 
 function proxy.new(...)
     assert(false, "please use `instance` interface instead of `new` in proxy mode")
