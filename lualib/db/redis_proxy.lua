@@ -7,7 +7,7 @@ local socket = require "socket"
 
 local db = false
 
-local disconnected = false
+local disconnected = true
 
 local proxy = {}
 
@@ -33,9 +33,11 @@ end
 
 local function instance(host, port)
     if not db then
+        local connecting = true
         local err
         db, err = redis.new(host, port, {proxy = true})
         assert(db, err)
+        connecting = false
         local fd = rawget(db, "_sock")
         disconnected = false
         socket.onclose(fd, function ()
@@ -48,9 +50,13 @@ local function instance(host, port)
             setmetatable(proxy, {
                 __index = function (_, cmd)
                     return function (_, ...)
+                        if disconnected and connecting then
+                            return nil, "db is connecting"
+                        end
                         print("try reconnect redis ...")
                         db = false
                         proxy = instance(host, port)
+                        return proxy[cmd](proxy, ...)
                     end
                 end
             })

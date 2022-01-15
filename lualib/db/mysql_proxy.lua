@@ -7,7 +7,7 @@ local socket = require "socket"
 
 local db = false
 
-local disconnected = false
+local disconnected = true
 
 local proxy = {}
 
@@ -66,6 +66,7 @@ end
 
 local function instance(host, port, opts)
     if not db then
+        local connecting = true
         local err
         db, err = mysql.new(host, port, {
             database = opts.database,
@@ -77,10 +78,10 @@ local function instance(host, port, opts)
             proxy = true,
         })
         assert(db, err)
+        connecting = false
         local fd = assert(db.sock)
         disconnected = false
         socket.onclose(fd, function (_)
-            print("mysql_proxy onclose")
             disconnected = true
             socket.close(fd)
             for _, co in ipairs(backlog) do
@@ -90,6 +91,9 @@ local function instance(host, port, opts)
             setmetatable(proxy, {
                 __index = function (_, cmd)
                     return function (_, ...)
+                        if disconnected and connecting then
+                            return nil, "db is connecting"
+                        end
                         print("try reconnect mysql ...")
                         db = false
                         proxy = instance(host, port, opts)
