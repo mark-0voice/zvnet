@@ -5,6 +5,7 @@ package.path = package.path .. ";./lualib/?.lua;"
 local evloop = require "evloop"
 local redis = require "db.redis_proxy"
 local zv = require "zv"
+require "util"
 
 evloop.start()
 
@@ -31,8 +32,26 @@ local function test_loop()
         return
     end
     print("name:", res, #res)
+
+
+    local script = [[
+local args = KEYS[1]
+local name = redis.call("get", "name")
+
+if name == "zero voice" then
+    redis.call("set", "name", args)
+    return "success"
+end
+return "failed"
+    ]]
+    res, err = rds:script("load", script)
+    print("script", table.dump(res), table.dump(err))
+
+    res, err = rds:evalsha(res, 1, "mark")
+    print("evalsha", table.dump(res), table.dump(err))
+
     -- shell: restart redis
-    zv.sleep(1000) -- sleep 10 seconds
+    -- zv.sleep(1000) -- sleep 10 seconds
     res, err = rds:get("name")
     print("name:", res, err)
 end

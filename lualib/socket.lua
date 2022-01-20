@@ -4,6 +4,7 @@ local buffer = require "zvnet.buffer"
 local zv = require "zv"
 
 local tab_isempty = require "table.isempty"
+local tab_isarray = require "table.isarray"
 local tab_remove = table.remove
 local tab_concat = table.concat
 local traceback = debug.traceback
@@ -293,10 +294,24 @@ function _M.read(fd, sz)
     return ok, err
 end
 
+local function concat_tab_buf(tab)
+    local tmp = {}
+    for _, v in ipairs(tab) do
+        if type(v) == "table" then
+            assert(tab_isarray(v))
+            tmp[#tmp+1] = concat_tab_buf(v)
+        else
+            tmp[#tmp+1] = v
+        end
+    end
+    return tab_concat(tmp)
+end
+
 function _M.write(fd, buf)
     local typ = type(buf)
     if typ == "table" then
-        buf = tab_concat(buf)
+        assert(tab_isarray(buf))
+        buf = concat_tab_buf(buf)
     end
     if #buf == 0 then
         return true
