@@ -50,6 +50,12 @@ return "failed"
     res, err = rds:evalsha(res, 1, "mark")
     print("evalsha", table.dump(res), table.dump(err))
 
+    rds:init_pipeline()
+    rds:multi()     -- "OK"
+    rds:get("name") -- "QUEUED"
+    rds:exec()      -- { [1] = "mark",} ,}
+    res = rds:commit_pipeline()
+    print("pipeline", table.dump(res[3][1]), table.dump(err))
     -- shell: restart redis
     -- zv.sleep(1000) -- sleep 10 seconds
     res, err = rds:get("name")

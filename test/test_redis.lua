@@ -16,7 +16,6 @@ local function is_action_allowed(red, userid, action, period, max_count)
     local key = tab_concat({"hist", userid, action}, ":")
     local now = zv.time()
     red:init_pipeline()
-    -- zvnet
     red:multi()
     -- 记录行为
     red:zadd(key, now, now)

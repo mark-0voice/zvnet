@@ -538,6 +538,11 @@ function _M.commit_pipeline(self)
         return nil, err
     end
 
+    local proxy = rawget(self, "_proxy")
+    if proxy then
+        return true
+    end
+
     local nvals = 0
     local nreqs = #reqs
     local vals = new_tab(nreqs, 0)

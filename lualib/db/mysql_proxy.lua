@@ -64,6 +64,41 @@ local function mysql_eventloop()
     end
 end
 
+local function new(...)
+    assert(false, "please use `instance` interface instead of `new` in proxy mode")
+end
+
+local function set_keepalive(...)
+    assert(false, "cant use `set_keepalive` in proxy mode")
+end
+
+local function read_result(...)
+    assert(false, "cant use `read_result` in proxy mode")
+end
+
+local function send_query(...)
+    assert(false, "cant use `send_query` in proxy mode")
+end
+
+local function proxy_metafunc(tab, cmd)
+    local function wait_for_response(self, ...)
+        if cmd == "query" then
+            cmd = "send_query"
+        end
+        local res, err = self[1][cmd](self[1], ...)
+        if res then
+            backlog[#backlog+1] = zv.co_running()
+            local fd = self[1].sock
+            zv.co_attach(fd)
+            res, err = zv.co_yield()
+            zv.co_detach(fd)
+        end
+        return res, err
+    end
+    tab[cmd] = wait_for_response
+    return wait_for_response
+end
+
 local function instance(host, port, opts)
     if not db then
         local connecting = true
@@ -102,45 +137,17 @@ local function instance(host, port, opts)
                 end
             })
         end)
-        proxy = setmetatable({db}, {
-            __index = function (_, cmd)
-                return function (self, ...)
-                    if cmd == "query" then
-                        cmd = "send_query"
-                    end
-                    local res, err = self[1][cmd](self[1], ...)
-                    if res then
-                        backlog[#backlog+1] = zv.co_running()
-                        local fd = self[1].sock
-                        zv.co_attach(fd)
-                        res, err = zv.co_yield()
-                        zv.co_detach(fd)
-                    end
-                    return res, err
-                end
-            end
-        })
+        proxy = setmetatable({db,
+                new = new,
+                set_keepalive = set_keepalive,
+                read_result = read_result,
+                send_query = send_query,
+            },{__index = proxy_metafunc})
         zv.fork(mysql_eventloop)
     end
     return proxy
 end
 
 _M.instance = instance
-
-function proxy.new(...)
-    assert(false, "please use `instance` interface instead of `new` in proxy mode")
-end
-
-function proxy.set_keepalive(...)
-    assert(false, "cant use `set_keepalive` in proxy mode")
-end
-
-function proxy.read_result(...)
-    assert(false, "cant use `read_result` in proxy mode")
-end
-
-function proxy.send_query(...)
-    assert(false, "cant use `send_query` in proxy mode")
-end
 
 return _M
